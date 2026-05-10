@@ -174,7 +174,7 @@ export function Checkout() {
 
   // Guest fields
   const [guestEmail, setGuestEmail] = useState('');
-  const [guestName, setGuestName] = useState('');
+  const [guestName] = useState('');
 
   const [shippingAddress, setShippingAddress] = useState({
     fullName: user?.name || '',
