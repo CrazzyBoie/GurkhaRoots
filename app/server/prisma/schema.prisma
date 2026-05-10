@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(uuid())
+  name          String
+  email         String     @unique
+  passwordHash  String?
+  googleId      String?    @unique
+  phone         String?
+  role          Role       @default(customer)
+  addresses     Address[]
+  orders        Order[]
+  wishlist      Wishlist[]
+  reviews       Review[]
+  refreshToken  String?
+  createdAt     DateTime   @default(now())
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  category    String
+  price       Float
+  material    String
+  featured    Boolean     @default(false)
+  newArrival  Boolean     @default(false)
+  images      String[]
+  variants    Variant[]
+  reviews     Review[]
+  wishlists   Wishlist[]
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+}
+
+model Variant {
+  id        String  @id @default(uuid())
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  size      String
+  color     String
+  colorHex  String
+  stock     Int
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  orderNumber    String      @unique
+  status         OrderStatus @default(PENDING)
+  stripePayId    String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  userId         String?
+  user           User?       @relation(fields: [userId], references: [id])
+  guestEmail     String?
+  addressId      String?
+  address        Address?    @relation(fields: [addressId], references: [id])
+  items          OrderItem[]
+  shippingSnap   Json
+  paymentMethod  String
+  shippingMethod String      @default("standard")
+  shippingCost   Float       @default(0)
+  total          Float
+  couponCode     String?
+  discount       Float       @default(0)
+  giftWrap       Boolean     @default(false)
+  giftNote       String?
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  name      String
+  image     String
+  size      String
+  color     String
+  quantity  Int
+  price     Float
+}
+
+model Address {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  fullName   String
+  phone      String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  country    String
+  postalCode String
+  isDefault  Boolean  @default(false)
+  orders     Order[]
+  createdAt  DateTime @default(now())   // ← ADD THIS
+  updatedAt  DateTime @updatedAt         // ← ADD THIS (optional but good practice)
+}
+
+model Coupon {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  type       String
+  value      Float
+  usageLimit Int
+  usedCount  Int      @default(0)
+  expiryDate DateTime
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+
+  @@unique([productId, userId])
+}
+
+model Wishlist {
+  id        String  @id @default(uuid())
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+
+  @@unique([userId, productId])
+}
+
+// ── Shipping configuration (admin-managed) ────────────────────────────────────
+
+model ShippingCountry {
+  id            String           @id @default(uuid())
+  name          String           // "New Zealand"
+  code          String           @unique // "NZ"
+  baseCost      Float            @default(0)
+  freeThreshold Float?           // order total >= this → free (null = never free)
+  currency      String           @default("NZD")
+  active        Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  methods       ShippingMethod[]
+}
+
+model ShippingMethod {
+  id          String          @id @default(uuid())
+  countryId   String
+  country     ShippingCountry @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  methodId    String          // "standard" | "express" | "overnight"
+  label       String
+  description String
+  cost        Float
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+
+  @@unique([countryId, methodId])
+}
+
+enum Role {
+  customer
+  inventory_manager
+  super_admin
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}

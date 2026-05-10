@@ -1,0 +1,113 @@
+import { create } from 'zustand';
+import { productsApi } from '@/services/api';
+import type { Product, Category, Pagination, ProductFilters } from '@/types';
+
+interface ProductState {
+  products: Product[];
+  categories: Category[];
+  featuredProducts: Product[];
+  newArrivals: Product[];
+  currentProduct: Product | null;
+  pagination: Pagination | null;
+  isLoading: boolean;
+  filters: ProductFilters;
+  setFilters: (filters: ProductFilters) => void;
+  fetchProducts: (filters?: ProductFilters, page?: number, limit?: number) => Promise<void>;
+  fetchProduct: (id: string) => Promise<void>;
+  fetchCategories: () => Promise<void>;
+  fetchFeaturedProducts: () => Promise<void>;
+  fetchNewArrivals: () => Promise<void>;
+  searchProducts: (query: string) => Promise<void>;
+}
+
+export const useProductStore = create<ProductState>((set, get) => ({
+  products: [],
+  categories: [],
+  featuredProducts: [],
+  newArrivals: [],
+  currentProduct: null,
+  pagination: null,
+  isLoading: false,
+  filters: {},
+
+  setFilters: (filters) => {
+    set({ filters: { ...get().filters, ...filters } });
+  },
+
+  fetchProducts: async (filters = {}, page = 1, limit = 12) => {
+    set({ isLoading: true });
+    try {
+      const params: Record<string, string | number | boolean> = { page, limit };
+      
+      if (filters.category) params.category = filters.category;
+      if (filters.size) params.size = filters.size;
+      if (filters.color) params.color = filters.color;
+      if (filters.minPrice) params.minPrice = filters.minPrice;
+      if (filters.maxPrice) params.maxPrice = filters.maxPrice;
+      if (filters.search) params.search = filters.search;
+      if (filters.sort) params.sort = filters.sort;
+      if (filters.featured) params.featured = true;
+      if (filters.newArrival) params.newArrival = true;
+
+      const response = await productsApi.getProducts(params);
+      set({ 
+        products: response.data.products,
+        pagination: response.data.pagination,
+      });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchProduct: async (id) => {
+    set({ isLoading: true });
+    try {
+      const response = await productsApi.getProduct(id);
+      set({ currentProduct: response.data });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchCategories: async () => {
+    try {
+      const response = await productsApi.getCategories();
+      set({ categories: response.data.categories });
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    }
+  },
+
+  fetchFeaturedProducts: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await productsApi.getProducts({ featured: true, limit: 8 });
+      set({ featuredProducts: response.data.products });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchNewArrivals: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await productsApi.getProducts({ newArrival: true, limit: 8 });
+      set({ newArrivals: response.data.products });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  searchProducts: async (query) => {
+    set({ isLoading: true });
+    try {
+      const response = await productsApi.getProducts({ search: query, limit: 12 });
+      set({ 
+        products: response.data.products,
+        pagination: response.data.pagination,
+      });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+}));
