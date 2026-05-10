@@ -17,7 +17,7 @@
     "jsx": "react-jsx",
 
     /* Deprecation suppression */
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
 
     /* Path aliases - resolves @/* for ALL pages and components */
     "baseUrl": ".",
